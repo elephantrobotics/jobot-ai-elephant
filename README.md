@@ -2,6 +2,15 @@
 
 myCobot280 RISCV Smart Retail Scene System
 
+## 安装代码
+
+- use git
+```bash
+git clone  https://github.com/elephantrobotics/jobot-ai-elephant.git
+```
+
+- [Download version](https://github.com/elephantrobotics/jobot-ai-elephant/releases)
+
 ## 环境安装
 
 ```bash
