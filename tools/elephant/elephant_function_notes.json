@@ -1,0 +1,13 @@
+[
+    {
+        "instruction": "抓取某物体放置到某位置",
+        "input": "",
+        "output": {
+            "function": "grab_an_object_and_place_it_in_a_position",
+            "arguments": {
+                "object_name": "橘子",
+                "place_position": "1"
+            }
+        }
+    }
+]

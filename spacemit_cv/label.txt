@@ -1,0 +1,15 @@
+jeep
+apple
+banana
+bed
+grape
+laptop
+microwave
+orange
+pear
+refrigerator1
+refrigerator2
+sofe
+sofe2
+tv
+washing machine1
