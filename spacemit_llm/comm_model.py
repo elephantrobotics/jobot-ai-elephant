@@ -9,7 +9,7 @@ class LLMModel:
         self._model_path = llm_model_path
         pass
 
-    # 获取聊天流的函数
+    # Function to get chat stream
     def get_chat_stream(self, text, messages):
         messages.append({"role": "user", "content": text})
         stream = chat(
@@ -19,7 +19,7 @@ class LLMModel:
         )
         return stream
 
-    # 处理函数调用的主逻辑
+    # Main logic for handling function calls
     def generate(self, text):
         self.messages = [
             {
@@ -28,10 +28,10 @@ class LLMModel:
             }
         ] 
         
-        # 获取聊天流
+        # Get chat stream
         stream = self.get_chat_stream(text, self.messages)
 
-        # 处理聊天流中的每一部分
+        # Handle each part of the chat flow
         for chunk in stream:
             content = chunk['message']['content']
             yield content

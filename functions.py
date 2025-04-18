@@ -1,4 +1,4 @@
-# 函数定义
+# Function definition
 def turn_on_light():
     print("turn_on_light")
 
@@ -120,7 +120,7 @@ def set_robot_vacuum_area(area):
     print(f"set_robot_vacuum_area(area='{area}')")
 
 
-# 函数名映射表
+# Function name mapping table
 func_map = {
     "turn_on_light": turn_on_light,
     "turn_off_light": turn_off_light,

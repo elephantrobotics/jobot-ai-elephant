@@ -16,7 +16,7 @@ def play_audio(wav_file_path):
 def play_audio_in_thread(wav_file_path, device='hw:1', volume='100%'):
     thread = threading.Thread(target=play_wav, args=(wav_file_path,device,volume))
     thread.start()
-    return thread  # 可选，返回线程对象以便管理
+    return thread  # Optional, returns the thread object for management
 
 
 def play_wav(path, device=play_device, volume='80%'):
@@ -33,15 +33,15 @@ def play_wav(path, device=play_device, volume='80%'):
     print(pr)
 
 def play_wav_non_blocking(path, device=play_device, volume='80%'):
-    # 设置音量
+    # Setting the volume
     number = device.split(":")[1].split(",")[0]
     cmd = f'amixer -c {number} set PCM {volume}'
     proc = subprocess.run(cmd, shell=True, capture_output=True, text=True)
     print(f'Set playback volume to {volume} return {proc.returncode}')
 
-    # 非阻塞播放音频
+    # Non-blocking audio playback
     cmd = f'aplay -D {device} {path}'
     proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     print(f'Playing {path} on {device} (PID={proc.pid})')
 
-    return proc  # 返回进程对象，方便后续管理（比如停止播放）
+    return proc  # Returns the process object for subsequent management (such as stopping playback)

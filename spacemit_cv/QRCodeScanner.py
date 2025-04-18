@@ -18,7 +18,7 @@ class QRCodeScanner:
         self.start_time = time.time()
 
         if not self.cap.isOpened():
-            raise Exception("Unable to open camera")
+            raise Exception("无法打开摄像头")
 
     def scan_qrcode_from_camera(self, raw_frame):
         """Scan the QR code in the camera frame and return the recognition result"""
@@ -37,14 +37,14 @@ class QRCodeScanner:
             cv2.imshow("QR", frame)
             cv2.waitKey(30)
             if not ret:
-                print("Unable to read video stream")
+                print("无法读取视频流")
                 break
             # Perform QR code recognition
             start_time = time.time()
             qr_data = self.scan_qrcode_from_camera(frame)
             end_time = (time.time() - start_time) * 1000
 
-            print(f"Processing time: {end_time:.3f}ms")
+            print(f"处理时间: {end_time:.3f}ms")
 
             if qr_data:
                 time.sleep(3)
@@ -53,7 +53,7 @@ class QRCodeScanner:
 
             # If the timeout is exceeded, return None
             if time.time() - self.start_time > self.time_out:
-                print("recognition timeout!!!")
+                print("识别超时!!!")
                 cv2.destroyAllWindows()
                 return None
 
@@ -76,6 +76,6 @@ def recognize_qr_from_video(camera_index=22, timeout=15):
 if __name__ == "__main__":
     qr_text = recognize_qr_from_video(camera_index=23, timeout=15)
     if qr_text:
-        print(f"Recognition results: {qr_text}")
+        print(f"识别结果: {qr_text}")
     else:
-        print("Failed to identify the QR code within the specified time")
+        print("未能在规定时间内识别二维码")

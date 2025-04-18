@@ -11,12 +11,12 @@ class RecAudioPipeLine:
     def __init__(self, vad_mode=1, sld=1, max_time=5, channels=1, rate=48000, device_index=0):
         """
         Args:
-            vad_mode: vad 的模式
-            sld: 静音多少 s 停止录音
-            max_time: 最多录音多少秒
-            channels: 声道数
-            rate: 采样率
-            device_index: 输入的设备索引
+            vad_mode: vad mode
+            sld: how many seconds of silence to stop recording
+            max_time: how many seconds of maximum recording
+            channels: number of channels
+            rate: sampling rate
+            device_index: input device index
         """
         self._mode = vad_mode
         self._sld = sld
@@ -24,12 +24,12 @@ class RecAudioPipeLine:
         self.frame_is_append = False
         self.time_start = time.time()
 
-        # 参数配置
-        self.FORMAT = pyaudio.paInt16  # 16-bit 位深
-        self.CHANNELS = channels              # 单声道
-        self.RATE = rate              # 16kHz 采样率
-        FRAME_DURATION = 30       # 每帧时长（ms）
-        self.FRAME_SIZE = int(self.RATE * FRAME_DURATION / 3000)  # 每帧采样数
+        # Parameter configuration
+        self.FORMAT = pyaudio.paInt16 # 16-bit bit depth
+        self.CHANNELS = channels # Mono
+        self.RATE = rate # 16kHz sampling rate
+        FRAME_DURATION = 30 # Duration per frame (ms)
+        self.FRAME_SIZE = int(self.RATE * FRAME_DURATION / 3000) # Number of samples per frame
 
         self.pa = pyaudio.PyAudio()
         self.stream = self.pa.open(
@@ -45,7 +45,7 @@ class RecAudioPipeLine:
         self.vad.set_mode(self._mode)
 
     def vad_audio(self):
-        """带有VAD的录音实现"""
+        """Recording with VAD"""
         frames = []
         speech_detected = False
         last_speech_time = time.time()
@@ -108,26 +108,26 @@ class RecAudioThreadPipeLine(RecAudioPipeLine):
         super().__init__(*args, **kwargs)
         self.thread = None
         self.is_recording = False
-        self.audio_ndarray = None  # 录音文件路径
+        self.audio_ndarray = None  # Recording file path
 
     def start_recording(self):
-        """启动录音线程"""
+        """Start recording thread"""
         if self.thread is None or not self.thread.is_alive():
             self.is_recording = True
             self.thread = threading.Thread(target=self._record_audio_thread)
             self.thread.start()
 
     def _record_audio_thread(self):
-        """录音线程执行的方法"""
+        """Methods executed by the recording thread"""
         self.audio_ndarray = self.record_audio()
         self.is_recording = False
 
     def stop_recording(self):
-        """停止录音"""
+        """Stop recording"""
         self.is_recording = False
         if self.thread and self.thread.is_alive():
             self.thread.join()
 
     def get_audio_file(self):
-        """获取录音后的文件路径"""
+        """Get the file path after recording"""
         return self.audio_ndarray

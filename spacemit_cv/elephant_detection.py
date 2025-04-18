@@ -19,7 +19,7 @@ class ElephantDetection:
         session_options = ort.SessionOptions()
         session_options.intra_op_num_threads = 4
 
-        # 加载 ONNX 模型
+        # Loading ONNX Model
         session = ort.InferenceSession(self.model_path,sess_options=session_options, providers=["SpaceMITExecutionProvider"])
 
         return session
@@ -33,23 +33,23 @@ class ElephantDetection:
     def infer(self,image):
         img = image.copy()
 
-        # 图像预处理
+        # Image preprocessing
         input_tensor = self.preprocess(img,self.input_size)
-        # 进行推理
+        # Making inferences
         outputs = self.infer_session.run([self.output_name], {self.input_name: input_tensor})
         output = outputs[0]
         offset = output.shape[1]
         anchors = output.shape[2]
 
-        # 后处理
+        # Post-processing
         dets = self.postprocess(image, output, anchors, offset, self.class_conf,self.input_size)
         dets = self.nms(dets)
         
 
         rect_list = self.convert_rect_list(dets)
-        class_ids = [int(det[4]) for det in dets]  # 获取所有检测到物体的类别索引
-        class_names = [self.labels[int(id)] for id in class_ids]  # 获取类别名称
-        # 绘制结果
+        class_ids = [int(det[4]) for det in dets]  # Get the category index of all detected objects
+        class_names = [self.labels[int(id)] for id in class_ids]  # Get Category Name
+        # Plotting Results
         result_img = self.draw_result(img, dets, self.labels)
 
         return result_img, rect_list, class_names
@@ -57,7 +57,7 @@ class ElephantDetection:
     def preprocess(self, image, input_size=(320, 320)):
         shape = image.shape[:2]
         pad_color=(0,0,0)
-        #调整图像大小
+        # Resize an image
         # Scale ratio
         r = min(input_size[0] / shape[0], input_size[1] / shape[1])
         # Compute padding
@@ -73,44 +73,44 @@ class ElephantDetection:
         left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
         image = cv2.copyMakeBorder(image, top, bottom, left, right, cv2.BORDER_CONSTANT, value=pad_color)  # add border
         
-        # 归一化处理
+        # Normalization
         image = image.astype(np.float32) / 255.0
-        # 调整维度以匹配模型输入 [batch, channel, height, width]
+        # Adjust dimensions to match model input [batch, channel, height, width]
         image = np.transpose(image, (2, 0, 1))
         image = np.expand_dims(image, axis=0)
 
         return image
     
     def postprocess(self,image,output, anchors, offset, conf_threshold,input_size=(320,320)):
-        # 获取图像的高和宽
+        # Get the height and width of the image
         shape = image.shape[:2]
-        # 计算缩放比例
+        # Calculate the scaling factor
         r = min(input_size[0] / shape[0], input_size[1] / shape[1])
-        # 计算新的未填充尺寸
+        # Calculate the new unfilled size
         new_unpad = (int(round(shape[1] * r)), int(round(shape[0] * r)))
-        # 计算填充量
+        # Calculate fill volume
         dw, dh = input_size[1] - new_unpad[0], input_size[0] - new_unpad[1]
-        # 将填充量平分到两侧
+        # Divide the filling equally between the two sides
         dw /= 2
         dh /= 2
-
-        # 去除 output 多余的维度
+        
+        # Remove redundant dimensions of output
         output = output.squeeze()
 
-        # 提取每个锚点对应的边界框信息（中心坐标、宽高）
+        # Extract bounding box information (center coordinates, width and height) corresponding to each anchor point
         center_x = output[0, :anchors]
         center_y = output[1, :anchors]
         box_width = output[2, :anchors]
         box_height = output[3, :anchors]
 
-        # 提取每个锚点对应的所有类别概率
+        # Extract all class probabilities corresponding to each anchor point
         class_probs = output[4:offset, :anchors]
 
-        # 找出每个锚点下概率最大的类别索引及其概率值
+        # Find the class index with the highest probability and its probability value under each anchor point
         max_prob_indices = np.argmax(class_probs, axis=0)
         max_probs = class_probs[max_prob_indices, np.arange(anchors)]
 
-        # 过滤掉置信度低于阈值的锚点
+        # Filter out anchor points with confidence below the threshold
         valid_mask = max_probs > conf_threshold
         valid_center_x = center_x[valid_mask]
         valid_center_y = center_y[valid_mask]
@@ -119,7 +119,7 @@ class ElephantDetection:
         valid_max_prob_indices = max_prob_indices[valid_mask]
         valid_max_probs = max_probs[valid_mask]
 
-        # 计算边界框坐标
+        # Calculate bounding box coordinates
         half_width = valid_box_width / 2
         half_height = valid_box_height / 2
         x1 = np.maximum(0, ((valid_center_x - half_width) - dw) / r).astype(int)
@@ -127,9 +127,9 @@ class ElephantDetection:
         y1 = np.maximum(0, ((valid_center_y - half_height) - dh) / r).astype(int)
         y2 = np.maximum(0, ((valid_center_y + half_height) - dh) / r).astype(int)
 
-        # 组合结果
-        objects = np.column_stack((x1, y1, x2, y2, valid_max_prob_indices, valid_max_probs)).tolist()            
-        
+        # Combine results
+        objects = np.column_stack((x1, y1, x2, y2, valid_max_prob_indices, valid_max_probs)).tolist()    
+                
         return objects
     
     def nms(self,dets):
@@ -137,33 +137,33 @@ class ElephantDetection:
             return np.empty((0, 6))
         
         dets_array = np.array(dets)
-        # 按类别分组
+        # Group by category
         unique_labels = np.unique(dets_array[:, 4])
         final_dets = []
 
         for label in unique_labels:
-            # 获取当前类别的检测结果
+            # Get the detection result of the current category
             mask = dets_array[:, 4] == label
             dets_class = dets_array[mask]
 
-            # 按置信度从高到低排序
+            # Sort by confidence from high to low
             order = np.argsort(-dets_class[:, 5])
             dets_class = dets_class[order]
 
-            # 逐个进行 NMS
+            # Perform NMS one by one
             keep = []
             while dets_class.shape[0] > 0:
-                # 保留当前置信度最高的检测结果
+                # Keep the detection result with the highest current confidence
                 keep.append(dets_class[0])
                 if dets_class.shape[0] == 1:
                     break
 
-                # 计算当前框与其他框的 IoU
+                # Calculate the current box and other boxes IoU
                 ious = self.calculate_iou(keep[-1], dets_class[1:])
-                # 去除 IoU 大于阈值的框
+                # Remove boxes whose IoU is greater than the threshold
                 dets_class = dets_class[1:][ious < self.nms_thresh]
 
-            # 将当前类别的结果添加到最终结果中
+            # Add the results of the current category to the final results
             final_dets.extend(keep)
 
         return final_dets
@@ -171,29 +171,29 @@ class ElephantDetection:
 
     def calculate_iou(self,box, boxes):
         """
-        计算一个框与一组框的 IoU
-        :param box: 单个框 [x1, y1, x2, y2]
-        :param boxes: 一组框 [N, 4]
-        :return: IoU 值 [N]
+        Calculate the IoU between a box and a group of boxes
+        :param box: a single box [x1, y1, x2, y2]
+        :param boxes: a group of boxes [N, 4]
+        :return: IoU value [N]
         """
-        # 计算交集区域
+        # Calculate the intersection area
         x1 = np.maximum(box[0], boxes[:, 0])
         y1 = np.maximum(box[1], boxes[:, 1])
         x2 = np.minimum(box[2], boxes[:, 2])
         y2 = np.minimum(box[3], boxes[:, 3])
         inter_area = np.maximum(0, x2 - x1) * np.maximum(0, y2 - y1)
 
-        # 计算并集区域
+        # Calculate the union area
         box_area = (box[2] - box[0]) * (box[3] - box[1])
         boxes_area = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
         union_area = box_area + boxes_area - inter_area
 
-        # 计算 IoU
+        # Calculate IoU
         return inter_area / union_area
 
 
 
-    # 可视化结果
+    # Visualize the results
     def draw_result(self,image, dets, class_names, color=(0, 255, 0), thickness=2):
         image = image.copy()
         image_h, image_w = image.shape[:2]
@@ -204,7 +204,7 @@ class ElephantDetection:
             y1 = int(y1)
             x2 = int(x2)
             y2 = int(y2)
-            # 绘制边界框
+            # Draw the bounding box
             cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
             # print('label:', label)
             cv2.putText(image, f'{class_names[int(label)]}: {score:.2f}', (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)

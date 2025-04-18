@@ -1,10 +1,11 @@
 # jobot-ai-elephant
 
-myCobot280 RISCV Smart Retail Scene System
+myCobot280 RISCV 智慧零售场景系统
 
 ## 安装代码
 
 - use git
+  
 ```bash
 git clone  https://github.com/elephantrobotics/jobot-ai-elephant.git
 ```
@@ -168,7 +169,8 @@ python smart_main_asr.py
 ├── asr_elephant_demo.py # 可以测试录⾳
 ├── functions.py
 ├── ocr_demo.py  # 单独测试OCR
-├── README.md
+├── README_EN.md  # 英文使用文档
+├── README.md  # 中文使用文档
 ├── smart_main_asr.py # 智慧零售主程序
 ├── smart_main.py
 ├── test_llm.py # 单独测试⼤模型

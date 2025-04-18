@@ -1,11 +1,11 @@
 from tools.elephant import func_map, object_name_dict_zh
 import difflib
 
-# 识别是否有函数调用
+# Identify if there is a function call
 def execute_command(user_input):
     valid_commands = list(object_name_dict_zh.keys())
     
-    # 使用 difflib 进行模糊匹配
+    # Fuzzy matching with difflib
     match = difflib.get_close_matches(user_input, valid_commands, n=1, cutoff=0.6)
     
     if match:

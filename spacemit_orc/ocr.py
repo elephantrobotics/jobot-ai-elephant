@@ -10,9 +10,9 @@ class TextDetector(Baseinfer):
                  min_score: float = 0.6,
                  use_cpu: bool = False):
         """
-        文字检测器
-        :param model_path: 文字检测模型的路径
-        :param min_score: 满足文本框检测的最低置信度                
+        Text detector
+        :param model_path: Path to the text detection model
+        :param min_score: Minimum confidence score required for text box detection              
         """
         super().__init__(model_path, use_cpu)
 
@@ -27,10 +27,10 @@ class TextDetector(Baseinfer):
 
     def _preprocess(self, img_obj: Union[str, bytes, np.ndarray]) -> Tuple[np.ndarray, np.ndarray, int, int]:
         """
-        图像预处理，限制输入图像尺寸
-        :param img_obj: 图片对象
-        :return: 返回四个参数，第一个为处理后的图片，第二个参数为原始图像，第三四个参数分别为图像的宽高
-        """        
+        Image preprocessing, limit the input image size
+        :param img_obj: image object
+        :return: returns four parameters, the first one is the processed image, the second one is the original image, and the third and fourth ones are the width and height of the image respectively
+        """
         image = cv2.imread(img_obj)
         img = np.array(image)
 
@@ -48,9 +48,9 @@ class TextDetector(Baseinfer):
 
     def _preprocess2(self, input_img: np.ndarray) -> np.ndarray:
         """
-        图像预处理第二步
-        :param input_img: 预处理后的图像
-        :return: 可供模型输入的数据
+        Image preprocessing step 2
+        :param input_img: preprocessed image
+        :return: data available for model input
         """
         input_tensor = input_img.astype(np.float32)
         input_tensor /= 255
@@ -60,11 +60,11 @@ class TextDetector(Baseinfer):
 
     def _postprocess(self, confidence_mask: np.ndarray, ori_w: int, ori_h: int) -> List[dict]:
         """
-        后处理，得到文本区域信息
-        :param confidence_mask: 模型推理结果
-        :param ori_w: 原图的宽
-        :param ori_h: 原图的高
-        :return: 返回包含文字区域位置、文本区域置信度、文本区域中心点的字典组成的列表
+        Post-processing, get text area information
+        :param confidence_mask: Model inference result
+        :param ori_w: original image width
+        :param ori_h: original image height
+        :return: Returns a list of dictionaries containing text area position, text area confidence, and text area center point
         """
         height, width = confidence_mask.shape
         mask = (confidence_mask > self.threshold).astype(np.uint8)
@@ -107,9 +107,9 @@ class TextDetector(Baseinfer):
 
     def forward(self, img_obj: Union[str, bytes, np.ndarray]) -> Tuple[list, np.ndarray]:
         """
-        输入图像得到文本框信息
-        :param img_obj: 图片对象
-        :return: 返回两个参数，第一个为包含文字区域位置、文本区域置信度、文本区域中心点的字典组成的列表，第二个参数为BGR格式的ndarray原始图像
+        Input image to get text box information
+        :param img_obj: image object
+        :return: Returns two parameters, the first one is a list of dictionaries containing text area position, text area confidence, and text area center point, and the second parameter is the original image in BGR format ndarray
         """
         input_img, ori_img, ori_w, ori_h = self._preprocess(img_obj)
         input_tensor = self._preprocess2(input_img)
@@ -119,10 +119,10 @@ class TextDetector(Baseinfer):
     @staticmethod
     def warp_box(det_results: List[dict], ori_img: np.ndarray) -> Iterator:
         """
-        将原图中不同角度的文本框做放射变换，用于后续文本方向判断及文字识别
-        :param det_results: 文字检测器返回的结果
-        :param ori_img: 原始图像
-        :return: 返回包含角度纠正的的文本框图片的生成器
+        Radially transform the text boxes at different angles in the original image for subsequent text direction judgment and text recognition
+        :param det_results: Results returned by the text detector
+        :param ori_img: Original image
+        :return: Returns the generator of the text box image with angle correction
         """
         for result in det_results:
             start_idx = result['points'].sum(axis=1).argmin()
@@ -143,10 +143,10 @@ class TextClassifier(Baseinfer):
                  cls_threshold: float = 0.9,                 
                  use_cpu: bool = False):
         """
-        文本方向分类器
-        :param model_path: 文字方向分类器模型的路径
-        :param cls_threshold: 满足方向分类的最低置信度        
-        :param use_cpu: 是否仅使用cpu
+        Text direction classifier
+        :param model_path: Path to the text direction classifier model
+        :param cls_threshold: Minimum confidence level for direction classification
+        :param use_cpu: Whether to use only CPU
         """
         super().__init__(model_path, use_cpu)
 
@@ -158,9 +158,9 @@ class TextClassifier(Baseinfer):
 
     def _preprocess(self, img_obj: Union[str, bytes, np.ndarray]) -> np.ndarray:
         """
-        图像预处理，将文本框图像的高等比例固定尺寸
-        :param img_obj: 图片对象
-        :return: 返回处理后的图像
+        Image preprocessing, fix the height ratio of the text box image to a fixed size
+        :param img_obj: image object
+        :return: returns the processed image
         """
         img = img_obj.copy()
         h, w = img.shape[:2]
@@ -174,9 +174,9 @@ class TextClassifier(Baseinfer):
 
     def _preprocess2(self, input_img: np.ndarray) -> np.ndarray:
         """
-        图像预处理第二步
-        :param input_img: 预处理后的图像
-        :return: 可供模型输入的数据
+        Image preprocessing step 2
+        :param input_img: preprocessed image
+        :return: data available for model input
         """
         input_tensor = input_img.transpose((2, 0, 1)).astype(np.float32)
         input_tensor -= self._input_mean
@@ -185,9 +185,9 @@ class TextClassifier(Baseinfer):
 
     def _postprocess(self, each_output: np.ndarray) -> int:
         """
-        后处理，判断图像角度
-        :param each_output: 模型推理结果
-        :return: 返回图像角度，0或180
+        Post-processing, determine the image angle
+        :param each_output: model inference result
+        :return: return image angle, 0 or 180
         """
         idx = each_output.argmax()
         score = np.max(each_output)
@@ -195,9 +195,9 @@ class TextClassifier(Baseinfer):
 
     def forward(self, img_obj: Union[str, bytes, np.ndarray]) -> int:
         """
-        输入图像得到角度
-        :param img_obj: 图片对象
-        :return: 返回图像角度，0或180
+        Input image to get angle
+        :param img_obj: image object
+        :return: return image angle, 0 or 180
         """
         input_img = self._preprocess(img_obj)
         input_tensor = self._preprocess2(input_img)
@@ -211,11 +211,11 @@ class TextRecognizer(Baseinfer):
                  rec_threshold: float = 0.5,                
                  use_cpu: bool = False):
         """
-        文本识别器
-        :param model_path: 文字识别模型的路径
-        :param text_path: 文本库的路径
-        :param rec_threshold: 文字识别的置信度，存在意义不大        
-        :param use_cpu: 是否仅使用cpu
+        Text recognizer
+        :param model_path: Path to the text recognition model
+        :param text_path: Path to the text library
+        :param rec_threshold: Confidence of text recognition, meaningless
+        :param use_cpu: Whether to use only CPU
         """
         super().__init__(model_path, use_cpu)
 
@@ -228,9 +228,9 @@ class TextRecognizer(Baseinfer):
 
     def _preprocess(self, img_obj: Union[str, bytes, np.ndarray]) -> np.ndarray:
         """
-        图像预处理，将文本框图像的高等比例固定尺寸
-        :param img_obj: 图片对象
-        :return: 返回处理后的图像
+        Image preprocessing, fix the height ratio of the text box image to a fixed size
+        :param img_obj: image object
+        :return: returns the processed image
         """
         #img = read_image(img_obj)
         img = img_obj.copy()
@@ -243,9 +243,9 @@ class TextRecognizer(Baseinfer):
 
     def _preprocess2(self, input_img: np.ndarray) -> np.ndarray:
         """
-        图像预处理第二步
-        :param input_img: 预处理后的图像
-        :return: 可供模型输入的数据
+        Image preprocessing step 2
+        :param input_img: preprocessed image
+        :return: data available for model input
         """
         input_tensor = input_img.transpose((2, 0, 1)).astype(np.float32)
         input_tensor -= self._input_mean
@@ -254,9 +254,9 @@ class TextRecognizer(Baseinfer):
 
     def _postprocess(self, each_output: np.ndarray) -> str:
         """
-        后处理，判断文字识别结果
-        :param each_output: 模型推理结果
-        :return: 文字识别结果
+        Post-processing, judging the text recognition results
+        :param each_output: model inference results
+        :return: text recognition results
         """
         text_idx_li = each_output.argmax(axis=1)
         content = ''.join([self._texts[i - 1] for idx, i in enumerate(text_idx_li) if i != 0 and not (idx > 0 and text_idx_li[idx - 1] == text_idx_li[idx])])
@@ -264,9 +264,9 @@ class TextRecognizer(Baseinfer):
 
     def forward(self, img_obj: Union[str, bytes, np.ndarray]) -> str:
         """
-        输入图像得到文字识别结果
-        :param img_obj: 图片对象
-        :return: 文字识别结果
+        Input image to get text recognition result
+        :param img_obj: image object
+        :return: text recognition result
         """
         input_img = self._preprocess(img_obj)
         input_tensor = self._preprocess2(input_img)
@@ -282,13 +282,13 @@ class OCRProcessor:
                  use_cpu: bool = False,
                  save_warp_img: bool = False):
         """
-        文字识别
-        :param det_model_path: 文字检测模型的路径
-        :param rec_model_path: 文字识别模型的路径
-        :param text_path: 文本库的路径
-        :param cls_model_path: 文字方向分类器模型的路径，如不需要方向检测可取消此项以提升速度        
-        :param use_cpu: 是否仅使用cpu
-        :param save_warp_img: 保存每个文本区域图片，默认不保存
+        Text recognition
+        :param det_model_path: Path to the text detection model
+        :param rec_model_path: Path to the text recognition model
+        :param text_path: Path to the text library
+        :param cls_model_path: Path to the text direction classifier model. If direction detection is not required, this item can be cancelled to increase the speed
+        :param use_cpu: Whether to use only CPU
+        :param save_warp_img: Save each text area image, not saved by default
         """
         self.text_detector = TextDetector(det_model_path,use_cpu=use_cpu)
         self.text_recognizer = TextRecognizer(rec_model_path, text_path, use_cpu=use_cpu)
@@ -301,9 +301,9 @@ class OCRProcessor:
 
     def forward(self, img_obj: Union[str, bytes, np.ndarray]) -> List[dict]:
         """
-        输入图像得到文字识别后的结果
-        :param img_obj: 图像路径，图像字节数据或BGR格式的ndarray数组
-        :return: 返回包含识别结果、文字区域位置、文本区域置信度、文本区域中心点的字典组成的列表
+        Input image to get the result after text recognition
+        :param img_obj: image path, image byte data or ndarray array in BGR format
+        :return: Returns a list of dictionaries containing recognition results, text area location, text area confidence, and text area center point
         """
         results, ori_img = self.text_detector.forward(img_obj)
         ocr_results = []

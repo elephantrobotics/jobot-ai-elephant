@@ -17,14 +17,14 @@ if __name__ == '__main__':
     try:
         while True:
             print("Press enter to start!")
-            input() # enter 触发
-            # 开始录制用户声音
+            input() # enter trigger
+            # Start recording user voice
             rec_audio.max_time_record = 3
             rec_audio.frame_is_append = True
             rec_audio.start_recording()
-            rec_audio.thread.join() # 等待录音完成
+            rec_audio.thread.join() # Wait for the recording to finish
 
-            audio_ret = rec_audio.get_audio_file() # 获取录音
+            audio_ret = rec_audio.get_audio_file() # Get the recording
             text = asr_model.generate(audio_ret)
             print('user: ', text)
 

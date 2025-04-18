@@ -2,7 +2,7 @@ import json
 from ollama import chat
 
 class FCModel:
-    def __init__(self, fc_model_name='qwen2.5-0.5b-fc'): # 你可以修改 fc_model_name 为自己微调后的 ollama 模型
+    def __init__(self, fc_model_name='qwen2.5-0.5b-fc'): # You can modify fc_model_name to your own fine-tuned ollama model.
         self._model_name = fc_model_name
 
     def get_chat(self, text):

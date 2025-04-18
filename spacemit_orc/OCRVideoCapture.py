@@ -40,7 +40,7 @@ class CameraOCR(Node):
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
         if not self.cap.isOpened():
-            raise Exception(f"Unable to open camera（index: {camera_index}）")
+            raise Exception(f"无法打开摄像头（索引: {camera_index}）")
 
         self.status_play = {'20':False, '5':False, '2':False}
 
@@ -100,12 +100,12 @@ class CameraOCR(Node):
 
             cv2.waitKey(30)
 
-            print("Recognized text::")
+            print("识别文字:")
             for text in self.recognized_texts:
                 print(text)
 
             if time.time() - self.start_time > self.timeout:
-                print("recognition timeout")
+                print("识别超时!!!")
                 return self.recognized_texts
 
     def release(self):
