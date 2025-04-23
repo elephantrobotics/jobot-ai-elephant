@@ -222,7 +222,7 @@ def user_input_loop():
                     print('结算结果：', ocr_text)
                     play_wav('./feedback_wav/xiaciguanglin.wav', device=play_device) # Payment of 27 yuan has been completed. Welcome to visit next time.
                 else:
-                    print("文字识别失败或超时")
+                    # print("文字识别失败或超时")
                     play_wav('./feedback_wav/shibieshibai.wav', device=play_device) # Text recognition failed or timed out
                 # After the recognition is completed, reopen the camera 20
                 cap = cv2.VideoCapture(20, cv2.CAP_V4L)

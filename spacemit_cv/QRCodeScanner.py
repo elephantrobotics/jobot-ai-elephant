@@ -11,7 +11,7 @@ from pyzbar.pyzbar import decode
 import time
 
 class QRCodeScanner:
-    def __init__(self, camera_index=0, timeout=30):
+    def __init__(self, camera_index=22, timeout=30):
         self.camera_index = camera_index
         self.time_out = timeout
         self.cap = cv2.VideoCapture(camera_index, cv2.CAP_V4L)
@@ -44,7 +44,7 @@ class QRCodeScanner:
             qr_data = self.scan_qrcode_from_camera(frame)
             end_time = (time.time() - start_time) * 1000
 
-            print(f"处理时间: {end_time:.3f}ms")
+            # print(f"处理时间: {end_time:.3f}ms")
 
             if qr_data:
                 time.sleep(3)

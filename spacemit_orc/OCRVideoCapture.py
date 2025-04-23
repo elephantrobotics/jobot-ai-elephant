@@ -9,24 +9,14 @@ Date: 2025-04-18
 import cv2
 import time
 import os
-import rclpy
-from rclpy.node import Node
-from sensor_msgs.msg import Image
-from cv_bridge import CvBridge
 from spacemit_orc.ocr import OCRProcessor
 import sys
 sys.path.append('/home/er/jobot-ai-elephant')
 from spacemit_audio import play_wav_non_blocking, play_wav
 
-class CameraOCR(Node):
+class CameraOCR:
     def __init__(self, camera_index=22, timeout=30):
-        # Initialize ROS2 node
-        super().__init__('camera_ocr_node')
-        
-        # Creating an Image Publisher
-        self.publisher_ = self.create_publisher(Image, 'detect1', 10)
-        self.bridge = CvBridge()
-        
+
         det_model_path = 'spacemit_orc/models/ppocr3_det_fixed.onnx'
         rec_model_path = 'spacemit_orc/models/ppocr_rec.onnx'
         rec_dict_path = 'spacemit_orc/models/rec_word_dict.txt'
@@ -35,6 +25,7 @@ class CameraOCR(Node):
         self.timeout = timeout
         self.start_time = time.time()
         self.recognized_texts = []  # Used to save the recognized text
+        self.printed_texts = set()
 
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
@@ -44,26 +35,14 @@ class CameraOCR(Node):
 
         self.status_play = {'20':False, '5':False, '2':False}
 
-    def publish_frame(self, frame):
-        try:
-            # Convert OpenCV images to ROS2 image messages
-            ros_image = self.bridge.cv2_to_imgmsg(frame, "bgr8")
-            # Publish an image
-            self.publisher_.publish(ros_image)
-        except Exception as e:
-            self.get_logger().error(f"Error posting image: {e}")
-
     def recognize_once(self):
-        while rclpy.ok():  # Use rclpy.ok() instead of infinite loop
+        while 1:
             ret, frame = self.cap.read()
 
             if not ret:
                 print("无法获取摄像头画面")
                 break
 
-            # Publish frames to ROS topics
-            # self.publish_frame(frame)
-            
             # Save temporary frames and identify them
             temp_path = "temp_frame.jpg"
             cv2.imwrite(temp_path, frame)
@@ -75,12 +54,14 @@ class CameraOCR(Node):
             except Exception as e:
                 print(f"OCR processing error: {e}")
                 results = []
+            valid_texts = ["超市抵用券1元", "超市抵用券2元", "超市抵用券5元", "超市抵用券10元", "超市抵用券20元"]
             # 如果识别结果存在，提取并保存
             if results:
                 texts = [item["content"] for item in results]
                 for text in texts:
                     if text not in self.recognized_texts:  # 避免重复添加
-                        self.recognized_texts.append(text)
+                        if text in valid_texts and text not in self.recognized_texts:  # 只保存符合格式的 # 避免重复添加
+                            self.recognized_texts.append(text)
 
                         if '20' in text and self.status_play['20'] == False:
                             # play_wav_non_blocking('../feedback_wav/shoukuan20yuan.wav') ### 20元
@@ -100,24 +81,20 @@ class CameraOCR(Node):
 
             cv2.waitKey(30)
 
-            print("识别文字:")
             for text in self.recognized_texts:
-                print(text)
+                if text not in self.printed_texts:
+                    print(text)
+                    self.printed_texts.add(text)
 
             if time.time() - self.start_time > self.timeout:
-                print("识别超时!!!")
+                print("识别完成!!!")
                 return self.recognized_texts
 
     def release(self):
         self.cap.release()
         cv2.destroyAllWindows()
-        rclpy.shutdown()  # Shut down ROS2
-
 
 def recognize_text_from_camera(camera_index=22, timeout=30):
-    # Initializing ROS2
-    rclpy.init()
-    
     ocr_camera = CameraOCR(camera_index, timeout)
     result = ocr_camera.recognize_once()
     ocr_camera.release()
