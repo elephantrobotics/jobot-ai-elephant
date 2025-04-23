@@ -1,10 +1,10 @@
 # jobot-ai-elephant
 
-myCobot280 RISCV 智慧零售场景系统
+myCobot280 RISCV Smart Retail Scene System
 
-## 安装代码
+## Install the Code
 
-- use git
+- Use git
   
 ```bash
 git clone  https://github.com/elephantrobotics/jobot-ai-elephant.git
@@ -12,7 +12,7 @@ git clone  https://github.com/elephantrobotics/jobot-ai-elephant.git
 
 - [Download version](https://github.com/elephantrobotics/jobot-ai-elephant/releases)
 
-## 环境安装
+## Environment Setup
 
 ```bash
 sudo apt install -y \
@@ -27,14 +27,14 @@ sudo apt install -y \
     libopencv-dev
 ```
 
-## ⼤模型依赖安装
+## Large Model Dependency Installation
 
 ```bash
 cd ~/jobot-ai-elephant/spacemit_audio
 bash ollama.sh
 ```
 
-## python 依赖安装
+## Python Dependency Installation
 
 ```bash
 cd ~/jobot-ai-elephant
@@ -43,23 +43,23 @@ source ~/asr_env/bin/activate
 pip install -r requirements.txt
 ```
 
-## 设置音频组
+## Add User to Audio Group
 
 ```bash
 sudo usermod -aG audio $USER
 ```
 
-## 代码使用
+## Using the Code
 
-### 确认录音设备
+### Check Recording Devices
 
 ```bash
 arecord -l
 ```
 
-输出如下：
+Sample output:
 
-带camera的是相机设备不能选，card 3 可以
+Devices with "camera" in the name are camera-related and should not be selected. Card 3 is usable.
 
 ```bash
 **** List of CAPTURE Hardware Devices ****
@@ -74,106 +74,101 @@ card 3: Device [USB PnP Sound Device], device 0: USB Audio [USB Audio]
     Subdevice #0: subdevice #0
 ```
 
-修改 jobot-ai-pipeline/smart_main_asr.py ⽂件⾥⾯录⾳设备为 3 即可.
+Modify the recording device index to `3` in the `jobot-ai-pipeline/smart_main_asr.py` file:
 
-```bash
+```python
 ...
-record_device = 3  # 录音设备,需要更改
+record_device = 3  # Recording device index, needs to be changed
 rec_audio = RecAudioThreadPipeLine(vad_mode=1, sld=2, max_time=2, channels=1, rate=48000, device_index=record_device)
 ...
 ```
 
-### 控制最大录音时间
+### Control Maximum Recording Duration
 
-```bash
-rec_audio.max_time_record = 3 控制最⻓录⾳时间，单位 s
+```python
+rec_audio.max_time_record = 3  # Maximum recording time in seconds
 ```
 
-录⾳默认以⾮阻塞⽅式运⾏，但对于⼀般应⽤，串⾏执⾏⽐较常⻅，使⽤ join 等待录⾳完成。
+Recording runs in non-blocking mode by default. For most applications, serial execution is more common—use `join()` to wait for recording to finish:
 
-```bash
-...
-# 开始录制用户声音
+```python
+# Start recording user audio
 rec_audio.max_time_record = 3
 rec_audio.frame_is_append = True
 rec_audio.start_recording()
-rec_audio.thread.join() # 等待录音完成
+rec_audio.thread.join()  # Wait for recording to complete
 ```
 
-### 确认播放设备
+### Check Playback Devices
 
 ```bash
 aplay -l
 ```
 
-输出：
+Sample output:
 
 ```bash
 (asr_env) jobot-ai-pipeline git:(main) aplay -l
 card 0: sndes8326 [snd-es8326], device 0: i2s-dai0-ES8326 HiFi ES8326 HiFi-0 []
-    ⼦设备: 1/1
-    ⼦设备 #0: subdevice #0
+    Subdevices: 1/1
+    Subdevice #0: subdevice #0
 card 2: Device [USB Audio Device], device 0: USB Audio [USB Audio]
-    ⼦设备: 1/1
-    ⼦设备 #0: subdevice #0
+    Subdevices: 1/1
+    Subdevice #0: subdevice #0
 ```
 
-Device [USB Audio Device], device 0: USB Audio [USB Audio] 为USB扬声器，对应 card2 ，因此设
-置：play_device = 'plughw:2,0'
+The USB speaker corresponds to `card 2`. Therefore, set:  
+`play_device = 'plughw:2,0'`
 
-下⾯代码的相关内容需要更改:
+Update the following files accordingly:
 
-```bash
-...
+```python
 # smart_main_asr.py
-play_device='plughw:0,0' # 播放设备
-...
+play_device='plughw:0,0'  # Playback device
 ```
 
-```bash
-...
+```python
 # spacemit_audio/play.py
-play_device='plughw:0,0' # 播放设备
-...
+play_device='plughw:0,0'  # Playback device
 ```
 
-### 启动代码
+### Run the Code
 
 ```bash
 cd ~/jobot-ai-elephant
-source ~/asr_env/bin/activate # 使用虚拟环境运行
+source ~/asr_env/bin/activate  # Run within the virtual environment
 python smart_main_asr.py
 ```
 
-不输⼊内容按下回⻋进⼊录⾳模式，默认3S
+After pressing Enter with no input, it enters recording mode. Default is 3 seconds.
 
-**模糊匹配⽀持的指令：**
+**Fuzzy command matching supported examples:**
 
-抓橘⼦、苹果、买单等
+"Grab the orange", "Grab the apple", "Checkout", etc.
 
-**⼤模型⽀持指令：**
+**Commands supported by the large language model:**
 
-1. 给我⼀个苹果、还要⼀个橘⼦ ....
-2. ⼤模型会识别物体名称
+1. "Give me an apple", "And an orange" ...
+2. The large model can recognize object names.
 
-### 代码目录说明
+### Project Directory Structure
 
 ```bash
-├── spacemit_audio # 语⾳模块，包含录⾳、播放、ASR
-├── spacemit_cv # 视觉模块
-├── spacemit_llm # ⼤语⾳模型模块
-├── spacemit_orc # OCR 模块
-├── tools # 常⽤
-├── feedback_wav # 反馈语⾳
+├── spacemit_audio          # Audio module: recording, playback, ASR
+├── spacemit_cv             # Computer vision module
+├── spacemit_llm            # Large language model module
+├── spacemit_orc            # OCR module
+├── tools                   # Utilities
+├── feedback_wav            # Feedback audio
 ├── cv_robot_arm_demo.py
-├── asr_elephant_demo.py # 可以测试录⾳
+├── asr_elephant_demo.py    # Audio test script
 ├── functions.py
-├── ocr_demo.py  # 单独测试OCR
-├── README_EN.md  # 英文使用文档
-├── README.md  # 中文使用文档
-├── smart_main_asr.py # 智慧零售主程序
+├── ocr_demo.py             # Standalone OCR test
+├── README_EN.md            # English Use Documentation
+├── README.md               # Chinese Use Documentation
+├── smart_main_asr.py       # Main retail program
 ├── smart_main.py
-├── test_llm.py # 单独测试⼤模型
-├── test_match.py # 单独测试函数匹配
-└── test_play.py # 单独测试播放
+├── test_llm.py             # LLM test script
+├── test_match.py           # Function match test
+└── test_play.py            # Playback test script
 ```
