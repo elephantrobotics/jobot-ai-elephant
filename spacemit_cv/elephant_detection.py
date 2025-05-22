@@ -30,7 +30,7 @@ class ElephantDetection:
         for i in range(self.warm_up_times):
             self.infer_session.run([self.output_name], {self.input_name: warm_up_img})
 
-    def infer(self,image):
+    def infer(self, image, with_draw=True):
         img = image.copy()
 
         # Image preprocessing
@@ -44,13 +44,15 @@ class ElephantDetection:
         # Post-processing
         dets = self.postprocess(image, output, anchors, offset, self.class_conf,self.input_size)
         dets = self.nms(dets)
-        
 
         rect_list = self.convert_rect_list(dets)
         class_ids = [int(det[4]) for det in dets]  # Get the category index of all detected objects
         class_names = [self.labels[int(id)] for id in class_ids]  # Get Category Name
-        # Plotting Results
-        result_img = self.draw_result(img, dets, self.labels)
+        #  Plotting Results
+        if with_draw:
+            result_img = self.draw_result(img, dets, self.labels)
+        else:
+            result_img = None
 
         return result_img, rect_list, class_names
 
@@ -72,7 +74,7 @@ class ElephantDetection:
         top, bottom = int(round(dh - 0.1)), int(round(dh + 0.1))
         left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
         image = cv2.copyMakeBorder(image, top, bottom, left, right, cv2.BORDER_CONSTANT, value=pad_color)  # add border
-        
+
         # Normalization
         image = image.astype(np.float32) / 255.0
         # Adjust dimensions to match model input [batch, channel, height, width]
@@ -80,7 +82,7 @@ class ElephantDetection:
         image = np.expand_dims(image, axis=0)
 
         return image
-    
+
     def postprocess(self,image,output, anchors, offset, conf_threshold,input_size=(320,320)):
         # Get the height and width of the image
         shape = image.shape[:2]
@@ -93,7 +95,7 @@ class ElephantDetection:
         # Divide the filling equally between the two sides
         dw /= 2
         dh /= 2
-        
+
         # Remove redundant dimensions of output
         output = output.squeeze()
 
@@ -128,14 +130,14 @@ class ElephantDetection:
         y2 = np.maximum(0, ((valid_center_y + half_height) - dh) / r).astype(int)
 
         # Combine results
-        objects = np.column_stack((x1, y1, x2, y2, valid_max_prob_indices, valid_max_probs)).tolist()    
-                
+        objects = np.column_stack((x1, y1, x2, y2, valid_max_prob_indices, valid_max_probs)).tolist()
+
         return objects
-    
+
     def nms(self,dets):
         if len(dets) == 0:
             return np.empty((0, 6))
-        
+
         dets_array = np.array(dets)
         # Group by category
         unique_labels = np.unique(dets_array[:, 4])

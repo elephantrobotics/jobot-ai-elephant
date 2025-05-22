@@ -26,8 +26,8 @@ class LLMModel:
                 "role": "system",
                 "content": self._sys_mes
             }
-        ] 
-        
+        ]
+
         # Get chat stream
         stream = self.get_chat_stream(text, self.messages)
 
