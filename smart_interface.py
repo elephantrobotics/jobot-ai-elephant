@@ -12,7 +12,7 @@ class ImageInfer:
         self.infer_result = None
         self.lock = threading.Lock()
         self.detector = ElephantDetection('spacemit_cv/best.onnx')
-        # self.detector = ElephantDetection('spacemit_cv/yolov8n.q.onnx')
+        # self.detector = ElephantDetection('spacemit_cv/best.q.onnx')
         self.motion_control = motion_control
         self.when_checkout = False
         self.selected_class = TimedStr()

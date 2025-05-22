@@ -19,7 +19,7 @@ llm_model = LLMModel(sys_mes=sys_mes)
 from spacemit_audio import ASRModel, RecAudioThreadPipeLine, play_wav_non_blocking, play_wav, find_audio_card, find_playback_card
 
 play_device = f'plughw:{find_playback_card()},0'
-record_device = find_audio_card(target_name='Device [USB PnP Sound Device]')
+record_device = find_audio_card(target_name='[USB PnP Sound Device]')
 print(f"录音设备号：{record_device}")
 rec_audio = RecAudioThreadPipeLine(vad_mode=1, sld=1, max_time=2, channels=1, rate=48000, device_index=record_device)
 

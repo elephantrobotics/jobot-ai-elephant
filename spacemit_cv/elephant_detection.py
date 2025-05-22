@@ -6,7 +6,7 @@ class ElephantDetection:
     def __init__(self, model_path="best.onnx"):
         self.model_path = model_path
         self.class_conf = 0.3
-        self.nms_thresh = 0.45
+        self.nms_thresh = 0.1
         self.labels = [line.strip() for line in open("spacemit_cv/label.txt", 'r').readlines()]
         self.infer_session= self.init_infer_session()
         self.warm_up_times = 1
@@ -43,6 +43,7 @@ class ElephantDetection:
 
         # Post-processing
         dets = self.postprocess(image, output, anchors, offset, self.class_conf,self.input_size)
+
         dets = self.nms(dets)
 
         rect_list = self.convert_rect_list(dets)
@@ -169,6 +170,29 @@ class ElephantDetection:
             final_dets.extend(keep)
 
         return final_dets
+
+    # def nms(self, dets):
+    #     if len(dets) == 0:
+    #         return np.empty((0, 6))
+
+    #     dets_array = np.array(dets)
+    #     # 按置信度从高到低排序
+    #     order = np.argsort(-dets_array[:, 5])
+    #     dets_array = dets_array[order]
+
+    #     keep = []
+    #     while dets_array.shape[0] > 0:
+    #         curr_box = dets_array[0]
+    #         keep.append(curr_box)
+    #         if dets_array.shape[0] == 1:
+    #             break
+    #         # 对所有其余框计算 IoU
+    #         ious = self.calculate_iou(curr_box, dets_array[1:])
+    #         # 只保留与当前框 IoU 小于阈值的框（不管类别）
+    #         dets_array = dets_array[1:][ious < self.nms_thresh]
+
+    #     return keep
+
 
 
     def calculate_iou(self,box, boxes):

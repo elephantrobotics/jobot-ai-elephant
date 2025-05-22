@@ -34,10 +34,19 @@ func_map = {
 
 # Define valid object categories
 valid_classes = [
-    "jeep", "apple", "banana", "bed", "grape", "laptop", "microwave",
-    "orange", "pear", "refrigerator1", "refrigerator2", "sofe", "sofe2",
-    "tv", "washing machine1"
+    "jeep", "grape", "pear", "refrigerator1", "refrigerator2", "sofe", "sofe2", "washing machine1",
+    "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat",
+    "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat",
+    "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack",
+    "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball",
+    "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket",
+    "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
+    "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair",
+    "couch", "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse", "remote",
+    "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book",
+    "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"
 ]
+
 
 # Identify whether there is a function call
 def execute_command(user_input, object_name_dict):

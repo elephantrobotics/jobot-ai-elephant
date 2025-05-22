@@ -22,7 +22,7 @@ import spacemit_audio.play
 play_device = f'plughw:{find_playback_card()},0' # Playback device
 spacemit_audio.play.set_play_device(play_device)
 
-record_device = find_audio_card(target_name='Device [USB PnP Sound Device]') # Recording equipment needs to be changed
+record_device = find_audio_card(target_name='[USB PnP Sound Device]') # Recording equipment needs to be changed
 print(f"录音设备号：{record_device}")
 rec_audio = RecAudioThreadPipeLine(vad_mode=1, sld=1, max_time=2, channels=1, rate=48000, device_index=record_device)
 

@@ -49,6 +49,17 @@ pip install -r requirements.txt
 sudo usermod -aG audio $USER
 ```
 
+## 机械臂硬件安装
+
+```bash
+cd ~/jobot-ai-elephant
+source ~/asr_env/bin/activate
+python to_zero.py
+```
+
+待机械臂运动到预备抓取位姿后，再进行相机法兰和吸泵的安装
+
+
 ## 代码使用
 
 ### 确认录音设备
@@ -186,3 +197,8 @@ smart_simple.py ：英文文字输入，只包含LLM、目标检测、抓取流�
 ├── test_play.py    # 单独测试播放
 └── to_zero.py      # 机械臂回到识别零点
 ```
+
+## 机械臂调整说明
+
+如果机械臂的抓取位置和物体的实际位置有偏差，可以调整 tools/elephant/coordinate_transformation.py 文件下的 x_offset 和 y_offset
+

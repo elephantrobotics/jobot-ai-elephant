@@ -14,7 +14,7 @@ class Pixel2World:
         # 末端抓取的坐标偏移量,单位mm
         # self.x_offset = 83
         # self.y_offset = -60
-        self.x_offset = -83
+        self.x_offset = -97
         self.y_offset = -80
         self.world_ratio = 204 / 480 
 
