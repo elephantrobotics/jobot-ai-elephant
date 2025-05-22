@@ -53,6 +53,8 @@ sudo usermod -aG audio $USER
 
 ### Check Recording Devices
 
+Supports automatic recognition. If automatic recognition fails, manual Settings are required
+
 ```bash
 arecord -l
 ```
@@ -101,6 +103,8 @@ rec_audio.thread.join()  # Wait for recording to complete
 
 ### Check Playback Devices
 
+Supports automatic recognition. If automatic recognition fails, manual Settings are required
+
 ```bash
 aplay -l
 ```
@@ -127,11 +131,6 @@ Update the following files accordingly:
 play_device='plughw:0,0'  # Playback device
 ```
 
-```python
-# spacemit_audio/play.py
-play_device='plughw:0,0'  # Playback device
-```
-
 ### Run the Code
 
 ```bash
@@ -151,6 +150,22 @@ After pressing Enter with no input, it enters recording mode. Default is 3 secon
 1. "Give me an apple", "And an orange" ...
 2. The large model can recognize object names.
 
+
+
+### Startup script description
+
+```
+smart_main_asr.py: Chinese voice input, including the entire process of speech-to-text conversion, LLM, object detection, capture, QR code recognition, and OCR text recognition
+
+smart_main.py: English text input, including the entire process of LLM, object detection, crawling, QR code recognition, and OCR text recognition
+
+smart_simple_asr.py: Chinese voice input, only including speech-to-text conversion, LLM, object detection, and capture processes, used for quick demonstration
+
+Smart_simple.py: English text input, only including LLM, object detection, and crawling processes, used for quick demonstration
+```
+
+
+
 ### Project Directory Structure
 
 ```bash
@@ -161,14 +176,16 @@ After pressing Enter with no input, it enters recording mode. Default is 3 secon
 ├── tools                   # Utilities
 ├── feedback_wav            # Feedback audio
 ├── cv_robot_arm_demo.py
-├── asr_elephant_demo.py    # Audio test script
-├── functions.py
 ├── ocr_demo.py             # Standalone OCR test
 ├── README_EN.md            # English Use Documentation
 ├── README.md               # Chinese Use Documentation
-├── smart_main_asr.py       # Main retail program
-├── smart_main.py
-├── test_llm.py             # LLM test script
-├── test_match.py           # Function match test
-└── test_play.py            # Playback test script
+├── smart_main_asr.py       # Main retail program(Voice interaction)
+├── smart_main.py       	# Without voice interaction
+├── smart_simple_asr.py 	# Simple recognition and capture examples (voice interaction)
+├── smart_simple.py     	# Simple recognition and capture examples
+├── test_asr.py     # The recording can be tested.
+├── test_llm.py     # Test the large model separately
+├── test_match.py   # Test the function matching separately
+├── test_play.py    # Test playback alone
+└── to_zero.py      # The robotic arm returns to the recognition zero point
 ```
