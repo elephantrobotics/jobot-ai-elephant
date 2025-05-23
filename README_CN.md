@@ -49,9 +49,21 @@ pip install -r requirements.txt
 sudo usermod -aG audio $USER
 ```
 
+## 机械臂硬件安装
+
+```bash
+cd ~/jobot-ai-elephant
+source ~/asr_env/bin/activate
+python to_zero.py
+```
+
+待机械臂运动到预备抓取位姿后，再进行相机法兰和吸泵的安装
+
+
 ## 代码使用
 
 ### 确认录音设备
+支持自动识别，如果自动识别失败则需要手动设置
 
 ```bash
 arecord -l
@@ -102,6 +114,8 @@ rec_audio.thread.join() # 等待录音完成
 
 ### 确认播放设备
 
+支持自动识别，如果自动识别失败则需要手动设置
+
 ```bash
 aplay -l
 ```
@@ -130,13 +144,6 @@ play_device='plughw:0,0' # 播放设备
 ...
 ```
 
-```bash
-...
-# spacemit_audio/play.py
-play_device='plughw:0,0' # 播放设备
-...
-```
-
 ### 启动代码
 
 ```bash
@@ -144,36 +151,54 @@ cd ~/jobot-ai-elephant
 source ~/asr_env/bin/activate # 使用虚拟环境运行
 python smart_main_asr.py
 ```
-
 不输⼊内容按下回⻋进⼊录⾳模式，默认3S
 
 **模糊匹配⽀持的指令：**
 
-抓橘⼦、苹果、买单等
+抓橘⼦、苹果、梨、买单等
 
 **⼤模型⽀持指令：**
 
 1. 给我⼀个苹果、还要⼀个橘⼦ ....
 2. ⼤模型会识别物体名称
 
+### 启动脚本说明
+
+smart_main_asr.py ： 中文语音输入，包含语音转文字、LLM、目标检测、抓取、二维码识别、OCR文字识别全流程
+
+smart_main.py ： 英文文字输入，包含LLM、目标检测、抓取、二维码识别、OCR文字识别全流程
+
+smart_simple_asr.py ：中文语音输入，只包含语音转文字、LLM、目标检测、抓取流程，用于快速演示
+
+smart_simple.py ：英文文字输入，只包含LLM、目标检测、抓取流程，用于快速演示
+
+
+
 ### 代码目录说明
 
 ```bash
-├── spacemit_audio # 语⾳模块，包含录⾳、播放、ASR
-├── spacemit_cv # 视觉模块
-├── spacemit_llm # ⼤语⾳模型模块
-├── spacemit_orc # OCR 模块
+├── spacemit_audio  # 语⾳模块，包含录⾳、播放、ASR
+├── spacemit_cv     # 视觉模块
+├── spacemit_llm    # ⼤语⾳模型模块
+├── spacemit_orc    # OCR 模块
 ├── tools # 常⽤
-├── feedback_wav # 反馈语⾳
+├── feedback_wav    # 反馈语⾳
 ├── cv_robot_arm_demo.py
-├── asr_elephant_demo.py # 可以测试录⾳
-├── functions.py
-├── ocr_demo.py  # 单独测试OCR
-├── README_EN.md  # 英文使用文档
-├── README.md  # 中文使用文档
-├── smart_main_asr.py # 智慧零售主程序
-├── smart_main.py
-├── test_llm.py # 单独测试⼤模型
-├── test_match.py # 单独测试函数匹配
-└── test_play.py # 单独测试播放
+├── ocr_demo.py     # 单独测试OCR
+├── README_EN.md    # 英文使用文档
+├── README.md       # 中文使用文档
+├── smart_main_asr.py   # 智慧零售主程序（语音交互）
+├── smart_main.py       # 不带语音交互的
+├── smart_simple_asr.py # 简洁的识别和抓取示例（语音交互）
+├── smart_simple.py     # 简洁的识别和抓取示例
+├── test_asr.py     # 可以测试录⾳
+├── test_llm.py     # 单独测试⼤模型
+├── test_match.py   # 单独测试函数匹配
+├── test_play.py    # 单独测试播放
+└── to_zero.py      # 机械臂回到识别零点
 ```
+
+## 机械臂调整说明
+
+如果机械臂的抓取位置和物体的实际位置有偏差，可以调整 tools/elephant/coordinate_transformation.py 文件下的 x_offset 和 y_offset
+

@@ -128,6 +128,6 @@ class RecAudioThreadPipeLine(RecAudioPipeLine):
         if self.thread and self.thread.is_alive():
             self.thread.join()
 
-    def get_audio_file(self):
+    def get_audio(self):
         """Get the file path after recording"""
         return self.audio_ndarray
