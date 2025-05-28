@@ -28,6 +28,8 @@ class ElephantMotionControl(object):
         self.cam_coords = [194.3, -40.2, 235.1, -177.29, -3.82, 37.42]
         # Identify the area angle position
         self.detect_area_angle_position = [5.88, -11.33, -60.11, -16.69, 4.3, -121.55]
+        # self.detect_area_angle_position = [5.88, -11.33, -60.11, -16.69, 0, -127.55]
+
         # Angle position of product storage area
         self.storage_area_angle_position = [-58.88, -3.95, -53.7, -31.11, 1.23, -26.36]
         # Scan code to settle the transaction area location angle
@@ -205,7 +207,8 @@ class ElephantMotionControl(object):
             self.return_get_init_point_coords()
 
         # Use threads to execute robot actions to avoid lag
-        threading.Thread(target=move_robot).start()
+        # threading.Thread(target=move_robot).start()
+        move_robot()
 
 
     def convert_to_real_coordinates_simple(self, x_pixel, y_pixel):

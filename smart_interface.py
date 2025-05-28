@@ -18,6 +18,9 @@ class ImageInfer:
         self.selected_class = TimedStr()
         self.stop_event = threading.Event()
 
+        self.grap_flag = False
+        self.last_class = None
+
     def camera_display_loop(self):
         while self.show_camera and not self.stop_event.is_set():
             if self.motion_control.is_busy() or self.when_checkout:
@@ -26,6 +29,8 @@ class ImageInfer:
                     self.cap = None
                     cv2.destroyAllWindows()
                 time.sleep(0.1)
+
+                self.grap_flag = True
                 continue
 
             if self.cap is None:
@@ -47,6 +52,11 @@ class ImageInfer:
             with self.lock:
                 result = self.infer_result
 
+            if self.grap_flag:
+                self.selected_class = TimedStr(timeout=3)
+                self.selected_class.set_value(self.last_class)
+                self.grap_flag = False
+
             if result:
                 _, rect_list, classnames = result
                 # Change the box color according to the user's selection
@@ -55,6 +65,7 @@ class ImageInfer:
 
                     if self.selected_class.get() and label_name == self.selected_class.get():
                         color = (0, 0, 255)  # If the box belongs to the object selected by the user, change it to red
+                        continue
                     else:
                         color = (0, 255, 0)
 
@@ -83,9 +94,10 @@ class ImageInfer:
                 frame = self.latest_frame.copy()
 
             try:
-                result_image, rect_list, classnames = self.detector.infer(frame, with_draw=False)
-                with self.lock:
-                    self.infer_result = (result_image, rect_list, classnames)
+                if not self.motion_control.is_busy():
+                    result_image, rect_list, classnames = self.detector.infer(frame, with_draw=False)
+                    with self.lock:
+                        self.infer_result = (result_image, rect_list, classnames)
 
             except Exception as e:
                 print("There is a mistake in infer loop:", e)
@@ -109,7 +121,17 @@ class ImageInfer:
                 print(f"找到目标 {object_name}，中心点: ({center_x}, {center_y})")
 
                 # self.selected_class = object_name
+                self.selected_class = TimedStr(timeout=4)
                 self.selected_class.set_value(object_name)
+                self.last_class = object_name
+
+                 # 删除对应的框和类别
+                del rect_list[idx]
+                del classnames[idx]
+
+                # 更新 infer_result 内部值（可选，根据你的 infer_result 是 tuple 还是属性）
+                self.infer_result = (result_image, rect_list, classnames)
+
                 return [center_x, center_y]
 
         return None
