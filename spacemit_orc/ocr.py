@@ -12,7 +12,7 @@ class TextDetector(Baseinfer):
         """
         Text detector
         :param model_path: Path to the text detection model
-        :param min_score: Minimum confidence score required for text box detection              
+        :param min_score: Minimum confidence score required for text box detection
         """
         super().__init__(model_path, use_cpu)
 
@@ -31,7 +31,23 @@ class TextDetector(Baseinfer):
         :param img_obj: image object
         :return: returns four parameters, the first one is the processed image, the second one is the original image, and the third and fourth ones are the width and height of the image respectively
         """
-        image = cv2.imread(img_obj)
+        if isinstance(img_obj, str):
+            image = cv2.imread(img_obj)
+            if image is None:
+                raise ValueError(f"无法读取图像路径: {img_obj}")
+        elif isinstance(img_obj, bytes):
+            image_np = np.frombuffer(img_obj, dtype=np.uint8)
+            image = cv2.imdecode(image_np, cv2.IMREAD_COLOR)
+            if image is None:
+                raise ValueError("无法解码图像字节流")
+        elif isinstance(img_obj, np.ndarray):
+            image = img_obj
+        else:
+            raise TypeError("img_obj 必须是 str, bytes 或 np.ndarray 类型")
+
+        if image.ndim == 2:
+            image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+
         img = np.array(image)
 
         h, w = img.shape[:2]
@@ -140,7 +156,7 @@ class TextDetector(Baseinfer):
 
 class TextClassifier(Baseinfer):
     def __init__(self, model_path: str,
-                 cls_threshold: float = 0.9,                 
+                 cls_threshold: float = 0.9,
                  use_cpu: bool = False):
         """
         Text direction classifier
@@ -208,7 +224,7 @@ class TextClassifier(Baseinfer):
 class TextRecognizer(Baseinfer):
     def __init__(self, model_path: str,
                  text_path: str,
-                 rec_threshold: float = 0.5,                
+                 rec_threshold: float = 0.5,
                  use_cpu: bool = False):
         """
         Text recognizer
@@ -278,7 +294,7 @@ class OCRProcessor:
     def __init__(self, det_model_path: str,
                  rec_model_path: str,
                  text_path: str,
-                 cls_model_path: Optional[str] = None,                
+                 cls_model_path: Optional[str] = None,
                  use_cpu: bool = False,
                  save_warp_img: bool = False):
         """
@@ -312,7 +328,7 @@ class OCRProcessor:
             if self.text_classifier is not None:
                 angle = self.text_classifier.forward(i)
                 if angle == 180:
-                    i = cv2.rotate(i, cv2.ROTATE_180)            
+                    i = cv2.rotate(i, cv2.ROTATE_180)
             content = self.text_recognizer.forward(i)
             if not content:
                 continue
@@ -334,7 +350,7 @@ def main():
     parse.add_argument('-m1', '--det_model_path', required=True, metavar='', help='文字检测模型的路径')
     parse.add_argument('-m2', '--rec_model_path', required=True, metavar='', help='文字识别模型的路径')
     parse.add_argument('-t', '--text_path', required=True, metavar='', help='文本库的路径')
-    parse.add_argument('-m3', '--cls_model_path', default='', metavar='', help='文字方向分类器模型的路径，如不需要方向检测可取消此项以提升速度')    
+    parse.add_argument('-m3', '--cls_model_path', default='', metavar='', help='文字方向分类器模型的路径，如不需要方向检测可取消此项以提升速度')
     parse.add_argument('--use_cpu', action='store_true', default=False, help='仅使用cpu')
     parse.add_argument('--save_warp_img', action='store_true', default=False, help='保存每个文本区域图片，默认不保存')
     args = parse.parse_args()

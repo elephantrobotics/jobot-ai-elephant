@@ -17,7 +17,7 @@ class FCModel:
                 "role": "user",
                 "content": text
             }
-        ] 
+        ]
         response = chat(
             model=self._model_name,
             messages=messages,
@@ -29,7 +29,7 @@ class FCModel:
         print("response:", response)
         content = response['message']['content']
         print("content:", content)
-    
+
         try:
             content = json.loads(content)
             func_name = content.get('function', '').lower()
@@ -55,7 +55,7 @@ class FCModel:
         print("response:", response)
         content = response['message']['content']
         print("content:", content)
-    
+
         try:
             content = json.loads(content)
             func_name = content.get('function', '').lower()

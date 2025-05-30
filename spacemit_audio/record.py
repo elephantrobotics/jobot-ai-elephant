@@ -1,139 +1,192 @@
-import webrtcvad
-import pyaudio
-import tempfile
-import wave
 import time
 import threading
+import numpy as np
+from collections import deque
+from scipy.signal import resample
 
-class RecAudio:
-    def __init__(self, vad_mode=1, sld=1, max_time=5, channels=1, rate=48000, device_index=0):
+import pyaudio            # 录音
+import onnxruntime as ort  # VAD
+
+
+def resample_audio(frame_bytes, original_rate, target_rate=16000):
+    # 先转为 int16 PCM
+    audio = np.frombuffer(frame_bytes, dtype=np.int16)
+    # 计算新采样点数
+    new_len = int(len(audio) * target_rate / original_rate)
+    # 重采样
+    resampled = resample(audio, new_len)
+    # 再转回 bytes（float32->int16）
+    resampled_int16 = np.clip(resampled, -1.0, 1.0) * 32768
+    return resampled_int16.astype(np.int16).tobytes()
+
+# -------- Silero VAD 封装（无 torch） -------- #
+WIN_SAMPLES  = 512             # 32 ms
+CTX_SAMPLES  = 64
+RATE_VAD = 16000
+
+class SileroVAD:
+    """NumPy 封装，输入 bytes(512*2) -> 概率 float"""
+    def __init__(self, model_path: str = "silero_vad.onnx", record_rate=16000):
+        self.sess  = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
+        self.state = np.zeros((2, 1, 128), dtype=np.float32)
+        self.ctx   = np.zeros((1, CTX_SAMPLES), dtype=np.float32)
+        self.sr    = np.array(RATE_VAD, dtype=np.int64)
+
+        self.record_rate = record_rate
+
+    def reset(self):
+        self.state.fill(0)
+        self.ctx.fill(0)
+
+    def __call__(self, pcm_bytes: bytes) -> float:
+
+        if self.record_rate != 16000:
+            pcm_bytes = resample_audio(pcm_bytes, original_rate=self.record_rate, target_rate=16000)
+
+        wav = (np.frombuffer(pcm_bytes, dtype=np.int16)
+                 .astype(np.float32) / 32768.0)[np.newaxis, :]      # (1,512)
+
+        x = np.concatenate((self.ctx, wav), axis=1)                # (1,576)
+        self.ctx = x[:, -CTX_SAMPLES:]
+
+        prob, self.state = self.sess.run(
+            None,
+            {"input": x.astype(np.float32),
+             "state": self.state,
+             "sr":    self.sr}
+        )
+        return float(prob)
+
+# ============ 录音管线，改用 SileroVAD ============ #
+class RecAudioPipeLine:
+    def __init__(self, sld=1, max_time=5, channels=1, rate=16000, device_index=0, trig_on=0.60, trig_off=0.35):
         """
         Args:
-            vad_mode: vad 的模式
             sld: 静音多少 s 停止录音
             max_time: 最多录音多少秒
             channels: 声道数
             rate: 采样率
             device_index: 输入的设备索引
+            TRIG_ON: Vad触发阈值
+            TRIG_OFF: Vad结束阈值
         """
-        self._mode = vad_mode
-        self._sld = sld
+        self._sld            = sld
         self.max_time_record = max_time
-        self.frame_is_append = False
-        self.time_start = time.time()
+        self.trig_on = trig_on
+        self.trig_off = trig_off
+        self.frame_is_append = True
 
-        # 参数配置
-        self.FORMAT = pyaudio.paInt16  # 16-bit 位深
-        self.CHANNELS = channels              # 单声道
-        self.RATE = rate              # 16kHz 采样率
-        FRAME_DURATION = 30       # 每帧时长（ms）
-        self.FRAME_SIZE = int(self.RATE * FRAME_DURATION / 3000)  # 每帧采样数
+        # ---- 录音参数固定为 16k / 512samples 与 VAD 对齐 ---- #
+        self.RATE       = rate # Silero v5 固定
+        self.FRAME_SIZE = WIN_SAMPLES
+        self.FORMAT     = pyaudio.paInt16
+        self.CHANNELS   = channels
 
-        self.pa = pyaudio.PyAudio()
-        self.stream = self.pa.open(
-            format=self.FORMAT,
-            channels=self.CHANNELS,
-            rate=self.RATE,
-            input=True,
-            frames_per_buffer=self.FRAME_SIZE,
-            input_device_index=device_index
-        )
+        self.pa     = pyaudio.PyAudio()
+        self.stream = self.pa.open(format=self.FORMAT,
+                                   channels=self.CHANNELS,
+                                   rate=self.RATE,
+                                   input=True,
+                                   frames_per_buffer=self.FRAME_SIZE,
+                                   input_device_index=device_index)
 
-        self.vad = webrtcvad.Vad()
-        self.vad.set_mode(self._mode)
+        self.vad = SileroVAD(record_rate=self.RATE)  # <<< 改这里
+        self.hist = deque(maxlen=10)   # 300 ms 平滑阈值
+        self.time_start = 0
 
+        self.exit_mode = 0
+
+    # ------------- 录音 + VAD ---------------- #
     def vad_audio(self):
-        """带有VAD的录音实现"""
-        # 变量初始化
-        frames = []                # 存储录制的音频帧
-        speech_detected = False    # 是否已检测到人声
-        last_speech_time = time.time()  # 最后检测到人声的时间
-        MIN_SPEECH_DURATION = 1.0       # 最短录制时间（秒），避免误触发
-
-        self.time_start = time.time()   # 用于最长录制时间的计时
-
-        temp_wav_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
-        temp_wav_path = temp_wav_file.name
-        print(temp_wav_path)
+        frames = []
+        speech_detected = False
+        last_speech_time = time.time()
+        self.time_start  = time.time()
 
         try:
-            while True:    
-                frame = self.stream.read(self.FRAME_SIZE, exception_on_overflow=False) # 读取一帧音频数据
-                
-                is_speech = self.vad.is_speech(frame, self.RATE) # VAD 检测是否含人声
+            while True:
+                frame = self.stream.read(self.FRAME_SIZE, exception_on_overflow=False)
+
+                # --- Silero 推理 ---
+                p = self.vad(frame)
+                # print(f'conf: {p}')
+                self.hist.append(p)
+                prob_avg = np.mean(self.hist)
+                is_speech = prob_avg > self.trig_on if not speech_detected else prob_avg > self.trig_off
+
                 if is_speech:
-                    # 检测到人声，更新最后活动时间
                     last_speech_time = time.time()
                     if not speech_detected:
                         speech_detected = True
-                        print("检测到语音，开始录制...")
-                
-                # 如果已经开始录制，保存音频帧
+                        print("▶ 检测到语音，开始录制...")
+
                 if self.frame_is_append:
                     frames.append(frame)
-                
-                # 静音超时判断（且满足最短录制时间）
-                current_time = time.time()
-                if (speech_detected and 
-                    current_time - last_speech_time > self._sld and
-                    current_time - last_speech_time > MIN_SPEECH_DURATION):
-                    print(f"静音超过 {self._sld} 秒，停止录制。")
+
+                # ----- 停止条件 -----
+                now = time.time()
+                if (speech_detected and
+                    now - last_speech_time > self._sld):
+                    print(f"⏹ 静音超过 {self._sld}s，停止录制")
+                    self.exit_mode = 0
                     break
 
-                # 录音时间超过设定的最长时间
-                if speech_detected and (time.time() - self.time_start) >= self.max_time_record:
-                    print(f"录音时间超过 {self.max_time_record} 秒，停止录制。")
+                if not speech_detected and (now - self.time_start) >= self.max_time_record:
+                    print(f"⏹ 录音超过 {self.max_time_record}s，停止录制")
+                    self.exit_mode = 1
                     break
-
-        except KeyboardInterrupt:
-            print("手动中断录制。")
 
         finally:
-            # 停止并关闭音频流
-            print("关闭音频流")
             self.stream.stop_stream()
 
-            if len(frames) > 0:
-                with wave.open(temp_wav_path, "wb") as wf:
-                    wf.setnchannels(self.CHANNELS)
-                    wf.setsampwidth(self.pa.get_sample_size(self.FORMAT))
-                    wf.setframerate(self.RATE)
-                    wf.writeframes(b"".join(frames))
-                # print("音频已保存为 temp_wav_file")
-                return temp_wav_path
+        # --------- 返回 numpy int16 波形 16 k --------- #
+        if len(frames) > 0:
+            # 转换为 numpy ndarray（int16 类型）
+            audio_data = b"".join(frames)
+            audio_np = np.frombuffer(audio_data, dtype=np.int16)
+
+            if self.RATE != 16000:
+                num_samples = int(len(audio_np) * float(16000) / self.RATE)
+                waveform = resample(audio_np, num=num_samples)
+                return waveform
+            else:
+                return audio_np
+        else:
+            print("音频数组为空！！！")
+            return None
 
     def record_audio(self):
-        """触发录音的函数"""
         self.stream.start_stream()
-        temp_wav_file_path = self.vad_audio()
-        return temp_wav_file_path
+        return self.vad_audio()
 
-
-class RecAudioThread(RecAudio):
+# -------- 线程包装保持不变 -------- #
+class RecAudioThreadPipeLine(RecAudioPipeLine):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.thread = None
-        self.is_recording = False
-        self.audio_file_path = None  # 录音文件路径
+        self.audio_np = None      # numpy int16
 
     def start_recording(self):
-        """启动录音线程"""
         if self.thread is None or not self.thread.is_alive():
-            self.is_recording = True
-            self.thread = threading.Thread(target=self._record_audio_thread)
+            self.thread = threading.Thread(target=self._record_audio_thread, daemon=True)
             self.thread.start()
 
     def _record_audio_thread(self):
-        """录音线程执行的方法"""
-        self.audio_file_path = self.record_audio()
-        self.is_recording = False
+        self.audio_np = self.record_audio()
 
     def stop_recording(self):
-        """停止录音"""
-        self.is_recording = False
         if self.thread and self.thread.is_alive():
             self.thread.join()
 
-    def get_audio_file(self):
-        """获取录音后的文件路径"""
-        return self.audio_file_path
+    def get_audio(self):
+        return self.audio_np
+
+# ---------------- 测试 ---------------- #
+if __name__ == "__main__":
+    rec = RecAudioThreadPipeLine(sld=1, max_time=5)
+    print("按 Enter 开始录音 ...")
+    input()
+    rec.start_recording()
+    rec.thread.join()
+    wav = rec.get_audio()
+    print("录音完成，采样点数:", None if wav is None else wav.shape[0])

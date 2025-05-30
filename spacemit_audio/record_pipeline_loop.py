@@ -1,4 +1,3 @@
-import webrtcvad
 import pyaudio
 import tempfile
 import wave
@@ -8,28 +7,30 @@ import numpy as np
 from scipy.signal import resample
 
 class RecAudioPipeLine:
-    def __init__(self, vad_mode=1, sld=1, max_time=5, channels=1, rate=48000, device_index=0):
+    def __init__(self, sld=1, min_db=2000, max_time=5, channels=1, rate=48000, device_index=0):
         """
         Args:
-            vad_mode: vad mode
-            sld: how many seconds of silence to stop recording
-            max_time: how many seconds of maximum recording
-            channels: number of channels
-            rate: sampling rate
-            device_index: input device index
+            vad_mode: vad 的模式
+            sld: 静音多少 s 停止录音
+            max_time: 最多录音多少秒
+            channels: 声道数
+            rate: 采样率
+            device_index: 输入的设备索引
         """
-        self._mode = vad_mode
         self._sld = sld
         self.max_time_record = max_time
-        self.frame_is_append = False
+        self.frame_is_append = True
         self.time_start = time.time()
 
-        # Parameter configuration
-        self.FORMAT = pyaudio.paInt16 # 16-bit bit depth
-        self.CHANNELS = channels # Mono
-        self.RATE = rate # 16kHz sampling rate
-        FRAME_DURATION = 30 # Duration per frame (ms)
-        self.FRAME_SIZE = int(self.RATE * FRAME_DURATION / 3000) # Number of samples per frame
+        self.MIN_DB = min_db
+
+        # 参数配置
+        self.FORMAT = pyaudio.paInt16  # 16-bit 位深
+        self.CHANNELS = channels              # 单声道
+        self.RATE = rate              # 16kHz 采样率
+        FRAME_DURATION = 30       # 每帧时长（ms）
+        # self.FRAME_SIZE = int(self.RATE * FRAME_DURATION / 3000)  # 每帧采样数
+        self.FRAME_SIZE = 1024
 
         self.pa = pyaudio.PyAudio()
         self.stream = self.pa.open(
@@ -41,24 +42,34 @@ class RecAudioPipeLine:
             input_device_index=device_index
         )
 
-        self.vad = webrtcvad.Vad()
-        self.vad.set_mode(self._mode)
+        # self.stream.start_stream()
+
+        self.exit_mode = 0
 
     def vad_audio(self):
-        """Recording with VAD"""
+        """带有VAD的录音实现"""
+        self.frame_is_append = False
         frames = []
         speech_detected = False
         last_speech_time = time.time()
-        MIN_SPEECH_DURATION = 1.0
         self.time_start = time.time()
 
         try:
             while True:
-                frame = self.stream.read(self.FRAME_SIZE, exception_on_overflow=False)
-                is_speech = self.vad.is_speech(frame, self.RATE)
-                if is_speech:
+                try:
+                    frame = self.stream.read(self.FRAME_SIZE, exception_on_overflow=False)
+                except Exception as e:
+                    print(f"音频读取失败: {e}")
+                    break
+
+                audio_data = np.frombuffer(frame, dtype=np.short)
+                current_max = np.max(audio_data)
+                # print('current_max: ', current_max)
+
+                if current_max > self.MIN_DB:
                     last_speech_time = time.time()
                     if not speech_detected:
+                        self.frame_is_append = True
                         speech_detected = True
                         print("检测到语音，开始录制...")
 
@@ -67,16 +78,19 @@ class RecAudioPipeLine:
 
                 current_time = time.time()
                 if (speech_detected and
-                    current_time - last_speech_time > self._sld and
-                    current_time - last_speech_time > MIN_SPEECH_DURATION):
+                    current_time - last_speech_time > self._sld):
                     print(f"静音超过 {self._sld} 秒，停止录制。")
+                    self.exit_mode = 0
                     break
 
-                if speech_detected and (current_time - self.time_start) >= self.max_time_record:
+                if  (current_time - self.time_start) >= self.max_time_record:
                     print(f"录音时间超过 {self.max_time_record} 秒，停止录制。")
+                    self.exit_mode = 1
                     break
 
-        except KeyboardInterrupt:
+
+        except Exception as e:
+            print(e)
             print("手动中断录制。")
 
         finally:
@@ -108,26 +122,37 @@ class RecAudioThreadPipeLine(RecAudioPipeLine):
         super().__init__(*args, **kwargs)
         self.thread = None
         self.is_recording = False
-        self.audio_ndarray = None  # Recording file path
+        self.audio_ndarray = None  # 录音文件路径
 
     def start_recording(self):
-        """Start recording thread"""
+        """启动录音线程"""
         if self.thread is None or not self.thread.is_alive():
             self.is_recording = True
             self.thread = threading.Thread(target=self._record_audio_thread)
             self.thread.start()
 
     def _record_audio_thread(self):
-        """Methods executed by the recording thread"""
+        """录音线程执行的方法"""
         self.audio_ndarray = self.record_audio()
         self.is_recording = False
 
     def stop_recording(self):
-        """Stop recording"""
+        """停止录音"""
         self.is_recording = False
         if self.thread and self.thread.is_alive():
             self.thread.join()
 
     def get_audio(self):
-        """Get the file path after recording"""
+        """获取录音后的文件路径"""
         return self.audio_ndarray
+
+
+# ---------------- 测试 ---------------- #
+if __name__ == "__main__":
+    rec = RecAudioThreadPipeLine(sld=1, max_time=5, rate=48000, device_index=1)
+    print("按 Enter 开始录音 ...")
+    input()
+    rec.start_recording()
+    rec.thread.join()
+    wav = rec.get_audio()
+    print("录音完成，采样点数:", None if wav is None else wav.shape[0])

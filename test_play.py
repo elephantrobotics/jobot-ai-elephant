@@ -15,6 +15,7 @@ play_wav('/home/er/jobot-ai-elephant/feedback_wav/huanyingshiyong.wav', device=d
 
 time.sleep(5)
 
+
 # play_wav_non_blocking('./feedback_wav/zhengzaijiesuan.wav', device='plughw:4,0')
 
 

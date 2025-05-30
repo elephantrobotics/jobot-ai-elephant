@@ -4,8 +4,8 @@ banana
 bed
 grape
 laptop
-microwave
-orange
+bed
+banana
 pear
 refrigerator1
 refrigerator2

@@ -1,72 +1,94 @@
-"""
-QRCodeScanner.py
-This module uses a USB camera to recognize the text information in the QR code and returns
-
-Author: Wang Weijian
-Date: 2025-04-18
-"""
-
 import cv2
 from pyzbar.pyzbar import decode
 import time
+import threading
 
 class QRCodeScanner:
-    def __init__(self, camera_index=22, timeout=30):
+    def __init__(self, camera_index=0, timeout=30):
         self.camera_index = camera_index
-        self.time_out = timeout
+        self.timeout = timeout
         self.cap = cv2.VideoCapture(camera_index, cv2.CAP_V4L)
-        self.start_time = time.time()
-
         if not self.cap.isOpened():
             raise Exception("无法打开摄像头")
 
+        self.frame = None
+        self.qr_data = None
+        self.lock = threading.Lock()
+        self.running = True
+        self.count = 0
+        self.start_time = time.time()
+
     def scan_qrcode_from_camera(self, raw_frame):
-        """Scan the QR code in the camera frame and return the recognition result"""
         decoded_objects = decode(raw_frame)
-        if decoded_objects:
-            # Recognize the QR code and return text information
-            for obj in decoded_objects:
-                qr_data = obj.data.decode("utf-8")
-                return qr_data
+        # Recognize the QR code and return text information
+        for obj in decoded_objects:
+            return obj.data.decode("utf-8")
         return None
 
-    def capture_and_recognize(self):
-        """Capture camera images and perform QR code recognition, returning the recognized text"""
-        while True:
+    def display_loop(self):
+        while self.running or self.count <= 25:
             ret, frame = self.cap.read()
-            cv2.imshow("QR", frame)
-            cv2.waitKey(30)
             if not ret:
                 print("无法读取视频流")
+                self.running = False
                 break
-            # Perform QR code recognition
-            start_time = time.time()
-            qr_data = self.scan_qrcode_from_camera(frame)
-            end_time = (time.time() - start_time) * 1000
 
-            # print(f"处理时间: {end_time:.3f}ms")
+            with self.lock:
+                self.frame = frame.copy()
 
-            if qr_data:
-                time.sleep(3)
-                cv2.destroyAllWindows()
-                return qr_data  # Recognize the QR code and return data
+            cv2.imshow("QR", frame)
 
-            # If the timeout is exceeded, return None
-            if time.time() - self.start_time > self.time_out:
-                print("识别超时!!!")
-                cv2.destroyAllWindows()
-                return None
-
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            if cv2.waitKey(20) & 0xFF == ord('q'):
+                self.running = False
                 break
+
+            self.count+=1
+
+        cv2.destroyAllWindows()
+
+    def recognition_loop(self):
+        while self.running and (time.time() - self.start_time < self.timeout):
+            if self.frame is not None:
+                with self.lock:
+                    frame_copy = self.frame.copy()
+
+                start_time = time.time()
+                qr_data = self.scan_qrcode_from_camera(frame_copy)
+                end_time = (time.time() - start_time) * 1000
+                print(f"处理时间: {end_time:.3f}ms")
+
+                if qr_data:
+                    self.qr_data = qr_data
+                    print("识别成功，准备退出")
+                    self.running = False
+                    break
+
+            time.sleep(0.01)
+
+        # If the timeout is exceeded, return None
+        if time.time() - self.start_time >= self.timeout:
+            print("识别超时")
+            self.running = False
+
+    def capture_and_recognize(self):
+        display_thread = threading.Thread(target=self.display_loop)
+        recognition_thread = threading.Thread(target=self.recognition_loop)
+
+        display_thread.start()
+        recognition_thread.start()
+
+        recognition_thread.join()
+        self.running = False
+        display_thread.join()
+
+        return self.qr_data
 
     def release_resources(self):
-        """Release camera resources"""
         self.cap.release()
         cv2.destroyAllWindows()
 
 # Main program calling interface
-def recognize_qr_from_video(camera_index=22, timeout=15):
+def recognize_qr_from_video(camera_index=0, timeout=15):
     scanner = QRCodeScanner(camera_index=camera_index, timeout=timeout)
     qr_data = scanner.capture_and_recognize()
     scanner.release_resources()
@@ -74,8 +96,8 @@ def recognize_qr_from_video(camera_index=22, timeout=15):
 
 # Usage Examples
 if __name__ == "__main__":
-    qr_text = recognize_qr_from_video(camera_index=23, timeout=15)
+    qr_text = recognize_qr_from_video(camera_index=22, timeout=15)
     if qr_text:
-        print(f"识别结果: {qr_text}")
+        print(f"识别到的二维码文本: {qr_text}")
     else:
         print("未能在规定时间内识别二维码")
